@@ -2,9 +2,15 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { prisma } from '@/app/lib/db'
 import { verifySession } from '@/app/lib/dal'
-import StockBadge from '@/app/ui/stock-badge'
+import { StockBadge } from '@/app/ui/badge'
+import Button from '@/app/ui/button'
+import Icon from '@/app/ui/icon-svg'
+import PageHeader from '@/app/ui/page-header'
 import ProductSearch from './product-search'
 import AddToCartButton from '@/app/ui/add-to-cart-button'
+import ProductVariantCard, { type VariantItem } from '@/app/ui/product-variant-card'
+import ImagePlaceholder, { hueFor } from '@/app/ui/image-placeholder'
+import EmptyState, { EmptyArt } from '@/app/ui/empty-state'
 
 type SearchParams = { q?: string; category?: string; status?: string }
 
@@ -46,106 +52,176 @@ export default async function ProductsPage({
     orderBy: { category: 'asc' },
   })
 
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">สินค้าทั้งหมด</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{products.length} รายการ</p>
-        </div>
-        {isAdmin && (
-          <Link
-            href="/products/new"
-            className="bg-zinc-100 text-zinc-900 rounded-lg px-4 py-2 text-sm font-semibold hover:bg-white transition-colors flex items-center gap-1.5"
-          >
-            <span>+</span> เพิ่มสินค้า
-          </Link>
-        )}
-      </div>
+  // Group products by variantGroup
+  const variantMap = new Map<string, typeof products>()
+  for (const p of products) {
+    if (p.variantGroup) {
+      if (!variantMap.has(p.variantGroup)) variantMap.set(p.variantGroup, [])
+      variantMap.get(p.variantGroup)!.push(p)
+    }
+  }
 
-      <ProductSearch
-        categories={categories.map((c) => c.category!)}
-        currentQ={sp.q}
-        currentCategory={sp.category}
-        currentStatus={sp.status}
+  type CardEntry =
+    | { type: 'standalone'; p: (typeof products)[0] }
+    | { type: 'group'; key: string; variants: (typeof products)[0][] }
+
+  const cards: CardEntry[] = []
+  const seenGroups = new Set<string>()
+  for (const p of products) {
+    if (!p.variantGroup) {
+      cards.push({ type: 'standalone', p })
+    } else if (!seenGroups.has(p.variantGroup)) {
+      seenGroups.add(p.variantGroup)
+      cards.push({ type: 'group', key: p.variantGroup, variants: variantMap.get(p.variantGroup)! })
+    }
+  }
+
+  const totalStock = allProducts.reduce((s, p) => s + p.stock, 0)
+  const lowCount = allProducts.filter((p) => p.stock > 0 && p.stock <= p.minStock).length
+  const outCount = allProducts.filter((p) => p.stock === 0).length
+
+  const hasFilters = sp.q || sp.category || sp.status
+
+  return (
+    <div className="max-w-[1240px] mx-auto px-6 pt-7 pb-16">
+      <PageHeader
+        kicker="แคตตาล็อก"
+        title="สินค้าทั้งหมด"
+        subtitle={`${cards.length} รายการ · ${categories.length} หมวด`}
+        actions={
+          isAdmin && (
+            <Link href="/products/new">
+              <Button variant="primary" icon="plus">เพิ่มสินค้า</Button>
+            </Link>
+          )
+        }
       />
 
-      {products.length === 0 ? (
-        <div className="text-center py-20 text-zinc-600">
-          <p className="text-lg">ไม่พบสินค้า</p>
-          {isAdmin && (
-            <Link href="/products/new" className="text-sm text-zinc-400 underline mt-2 block">
-              เพิ่มสินค้าใหม่
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all overflow-hidden flex flex-col"
-            >
-              {/* Clickable area → product detail */}
-              <Link href={`/products/${p.id}`} className="block group">
-                <div className="relative h-36 bg-zinc-800">
-                  {p.imageUrl ? (
-                    <Image
-                      src={p.imageUrl}
-                      alt={p.name}
-                      fill
-                      className="object-contain p-2 group-hover:scale-105 transition-transform duration-200"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
-                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
+      {/* Stat strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-[14px] overflow-hidden border border-line bg-line mb-4">
+        {[
+          { k: 'รายการทั้งหมด', v: allProducts.length, u: 'ชนิด', tone: '' },
+          { k: 'สต็อกรวม',      v: totalStock.toLocaleString(), u: 'ชิ้น', tone: '' },
+          { k: 'ใกล้หมด',       v: lowCount, u: 'ชนิด', tone: lowCount > 0 ? 'text-warn-soft-fg' : 'text-ink' },
+          { k: 'หมด',           v: outCount, u: 'ชนิด', tone: outCount > 0 ? 'text-danger' : 'text-ink' },
+        ].map((s, i) => (
+          <div key={i} className="p-4 bg-surface">
+            <div className="kicker">{s.k}</div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className={['num mono text-[22px] font-semibold tracking-[-0.5px]', s.tone || 'text-ink'].join(' ')}>{s.v}</span>
+              <span className="text-[11px] text-ink-3">{s.u}</span>
+            </div>
+          </div>
+        ))}
+      </div>
 
-                <div className="px-3 pt-3 pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-zinc-100 text-sm truncate group-hover:text-white transition-colors">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-zinc-600 mt-0.5">{p.sku}</p>
-                    </div>
-                    <StockBadge stock={p.stock} minStock={p.minStock} />
-                  </div>
+      {/* Filters */}
+      <ProductSearch
+        initialQuery={sp.q ?? ''}
+        initialCategory={sp.category ?? ''}
+        initialStatus={sp.status ?? 'all'}
+        categories={categories.map((c) => c.category ?? '').filter(Boolean) as string[]}
+      />
 
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-sm font-semibold text-zinc-200">
-                      ฿{Number(p.price).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-zinc-600 tabular-nums">
-                      คงเหลือ {p.stock}
-                    </p>
-                  </div>
-                </div>
+      {cards.length === 0 ? (
+        <EmptyState
+          illustration={<EmptyArt kind="search" />}
+          title={hasFilters ? 'ไม่พบสินค้าตามตัวกรอง' : 'ยังไม่มีสินค้า'}
+          description={hasFilters ? 'ลองปรับคำค้นหาหรือล้างตัวกรอง' : undefined}
+          action={
+            hasFilters ? (
+              <Link href="/products">
+                <Button variant="secondary">ล้างตัวกรอง</Button>
               </Link>
-
-              {/* Add to cart — separate from Link to avoid nested interaction */}
-              <div className="px-3 pb-3 mt-auto">
-                <AddToCartButton
-                  product={{
-                    productId: p.id,
-                    productName: p.name,
-                    sku: p.sku,
-                    price: Number(p.price),
-                    imageUrl: p.imageUrl,
-                    maxStock: p.stock,
-                  }}
+            ) : isAdmin ? (
+              <Link href="/products/new">
+                <Button variant="primary" icon="plus">เพิ่มสินค้า</Button>
+              </Link>
+            ) : null
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+          {cards.map((card, i) =>
+            card.type === 'group' ? (
+              <div
+                key={card.key}
+                className="anim-stagger"
+                style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
+              >
+                <ProductVariantCard
+                  groupName={card.key}
+                  variants={card.variants.map(
+                    (p): VariantItem => ({
+                      id: p.id,
+                      name: p.name,
+                      sku: p.sku,
+                      price: Number(p.price),
+                      imageUrl: p.imageUrl,
+                      stock: p.stock,
+                      minStock: p.minStock,
+                      variantLabel: p.variantLabel,
+                    }),
+                  )}
                 />
               </div>
-            </div>
-          ))}
+            ) : (
+              <ProductCard key={card.p.id} p={card.p} delay={Math.min(i * 25, 400)} />
+            ),
+          )}
         </div>
       )}
+    </div>
+  )
+}
+
+function ProductCard({ p, delay = 0 }: { p: any; delay?: number }) {
+  const out = p.stock === 0
+  const price = Number(p.price)
+  return (
+    <div
+      className="anim-stagger group bg-surface rounded-[14px] border border-line overflow-hidden flex flex-col hover:border-line-hi hover:-translate-y-px transition-[border-color,transform]"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <Link href={`/products/${p.id}`} className="block">
+        <div className="p-3 pb-0">
+          {p.imageUrl ? (
+            <Image src={p.imageUrl} alt={p.name} width={300} height={150} unoptimized
+              className="w-full h-[150px] object-cover rounded-md group-hover:scale-105 transition-transform duration-200" />
+          ) : (
+            <ImagePlaceholder hue={hueFor(p.id)} label="product shot" className="w-full h-[150px]" />
+          )}
+        </div>
+        <div className="px-3.5 pt-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="mono text-[10.5px] text-ink-3 tracking-wide">{p.sku}</div>
+              <div className="text-sm font-medium text-ink mt-0.5 line-clamp-1">{p.name}</div>
+            </div>
+            <StockBadge stock={p.stock} minStock={p.minStock} />
+          </div>
+          <div className="flex items-baseline justify-between mt-3">
+            <div className="text-lg font-semibold text-ink tracking-tight">
+              ฿{price.toLocaleString('th-TH', { minimumFractionDigits: price % 1 === 0 ? 0 : 2 })}
+            </div>
+            <div className="num text-[11.5px] text-ink-3">
+              คงเหลือ <span className="text-ink-2 font-medium">{p.stock}</span>
+            </div>
+          </div>
+        </div>
+      </Link>
+      <div className="p-3 mt-2.5 mt-auto">
+        <AddToCartButton
+          product={{
+            productId: p.id,
+            productName: p.name,
+            sku: p.sku,
+            price,
+            imageUrl: p.imageUrl,
+            maxStock: p.stock,
+          }}
+        />
+      </div>
     </div>
   )
 }

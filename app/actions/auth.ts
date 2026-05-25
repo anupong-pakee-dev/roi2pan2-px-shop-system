@@ -33,12 +33,12 @@ export async function login(
 
   // USER ต้องรอ approval ทุกครั้งที่ login
   if (user.role === 'USER') {
-    await prisma.user.update({ where: { id: user.id }, data: { approved: false } })
-    await createSession(user.id, user.role)
+    await prisma.user.update({ where: { id: user.id }, data: { approved: false, loginRequested: true } })
+    await createSession(user.id, user.username, user.role)
     redirect('/pending')
   }
 
-  await createSession(user.id, user.role)
+  await createSession(user.id, user.username, user.role)
   redirect('/products')
 }
 

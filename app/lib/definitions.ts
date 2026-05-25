@@ -14,6 +14,8 @@ export const ProductSchema = z.object({
   minStock: z.coerce.number().int().min(0, { error: 'ต้องไม่ติดลบ' }),
   category: z.string().optional(),
   imageUrl: z.string().optional(),
+  variantGroup: z.string().optional(),
+  variantLabel: z.string().optional(),
 })
 
 export const StockAdjustSchema = z.object({
@@ -24,6 +26,7 @@ export const StockAdjustSchema = z.object({
 
 export type SessionPayload = {
   userId: string
+  username: string
   role: string
   expiresAt: Date
 }

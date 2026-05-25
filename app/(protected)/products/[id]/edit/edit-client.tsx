@@ -13,6 +13,8 @@ type DefaultValues = {
   minStock?: number
   category?: string
   imageUrl?: string
+  variantGroup?: string | null
+  variantLabel?: string | null
 }
 
 export default function EditProductClient({ id, defaultValues }: { id: string; defaultValues: DefaultValues }) {

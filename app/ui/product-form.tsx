@@ -14,6 +14,8 @@ type Props = {
     minStock?: number
     category?: string
     imageUrl?: string
+    variantGroup?: string | null
+    variantLabel?: string | null
   }
   isEdit?: boolean
   state?: { errors?: Record<string, string[]>; message?: string }
@@ -76,6 +78,28 @@ export default function ProductForm({ action, defaultValues = {}, isEdit = false
           <label className={labelCls}>Stock ขั้นต่ำ (แจ้งเตือน)</label>
           <input name="minStock" type="number" min="0" defaultValue={defaultValues.minStock ?? 5} className={inputCls} />
           {state?.errors?.minStock && <p className="text-xs text-red-400 mt-1">{state.errors.minStock[0]}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1 border-t border-zinc-800">
+        <div>
+          <label className={labelCls}>กลุ่มสินค้า (สำหรับหลายรส/ขนาด)</label>
+          <input
+            name="variantGroup"
+            defaultValue={defaultValues.variantGroup ?? ''}
+            className={inputCls}
+            placeholder="เช่น นมขวดเล็ก"
+          />
+          <p className="text-xs text-zinc-600 mt-1">สินค้าที่ใส่ชื่อกลุ่มเดียวกันจะถูกรวมเป็นรายการเดียว</p>
+        </div>
+        <div>
+          <label className={labelCls}>ชื่อรส / ขนาด</label>
+          <input
+            name="variantLabel"
+            defaultValue={defaultValues.variantLabel ?? ''}
+            className={inputCls}
+            placeholder="เช่น รสจืด, รสช็อกโกแลต"
+          />
         </div>
       </div>
 

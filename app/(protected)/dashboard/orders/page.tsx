@@ -1,17 +1,22 @@
 import Link from 'next/link'
 import { prisma } from '@/app/lib/db'
 import { verifyStaff } from '@/app/lib/dal'
-import OrderStatusBadge from '@/app/ui/order-status-badge'
+import { OrderStatusBadge } from '@/app/ui/badge'
+import PageHeader from '@/app/ui/page-header'
+import Card from '@/app/ui/card'
+import Icon from '@/app/ui/icon-svg'
+import EmptyState, { EmptyArt } from '@/app/ui/empty-state'
+import Button from '@/app/ui/button'
 import type { OrderStatus } from '@prisma/client'
 
 const STATUS_OPTIONS: { label: string; value: string }[] = [
-  { label: 'ทั้งหมด', value: 'ALL' },
-  { label: 'รอยืนยัน', value: 'PENDING' },
-  { label: 'ยืนยันแล้ว', value: 'CONFIRMED' },
-  { label: 'กำลังเตรียมของ', value: 'PREPARING' },
-  { label: 'จัดส่งแล้ว', value: 'SHIPPED' },
-  { label: 'ส่งถึงแล้ว', value: 'DELIVERED' },
-  { label: 'ยกเลิก', value: 'CANCELLED' },
+  { label: 'ทั้งหมด',          value: 'ALL' },
+  { label: 'รอยืนยัน',          value: 'PENDING' },
+  { label: 'ยืนยันแล้ว',         value: 'CONFIRMED' },
+  { label: 'กำลังเตรียมของ',     value: 'PREPARING' },
+  { label: 'จัดส่งแล้ว',         value: 'SHIPPED' },
+  { label: 'ส่งถึงแล้ว',         value: 'DELIVERED' },
+  { label: 'ยกเลิก',             value: 'CANCELLED' },
 ]
 
 export default async function AdminOrdersPage({
@@ -23,63 +28,97 @@ export default async function AdminOrdersPage({
   const { status } = await searchParams
   const filter = status && status !== 'ALL' ? (status as OrderStatus) : undefined
 
-  const orders = await prisma.order.findMany({
-    where: filter ? { status: filter } : undefined,
-    include: {
-      user: { select: { username: true } },
-      items: { select: { productName: true, quantity: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+  const [orders, counts] = await Promise.all([
+    prisma.order.findMany({
+      where: filter ? { status: filter } : undefined,
+      include: {
+        user: { select: { username: true } },
+        items: { select: { productName: true, quantity: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.order.groupBy({ by: ['status'], _count: { id: true } }),
+  ])
+
+  const countMap = new Map(counts.map((c) => [c.status, c._count.id]))
+  const totalAll = counts.reduce((s, c) => s + c._count.id, 0)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-100">จัดการคำสั่งซื้อ</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">คำสั่งซื้อทั้งหมด {orders.length} รายการ</p>
-      </div>
+    <div className="max-w-[1440px] mx-auto px-6 pt-7 pb-16">
+      <PageHeader
+        kicker="จัดการ"
+        title="ออเดอร์ทั้งหมด"
+        subtitle={`${orders.length} รายการ${filter ? ` · กรองโดยสถานะ` : ''}`}
+        actions={<Button variant="secondary" icon="download">Export</Button>}
+      />
 
-      <div className="flex gap-2 flex-wrap">
-        {STATUS_OPTIONS.map((opt) => (
-          <Link
-            key={opt.value}
-            href={`/dashboard/orders?status=${opt.value}`}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              (filter ?? 'ALL') === opt.value
-                ? 'bg-zinc-200 text-zinc-900'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
-            }`}
-          >
-            {opt.label}
-          </Link>
-        ))}
+      {/* Status pills */}
+      <div className="flex gap-2 overflow-x-auto scroll-thin pb-1 mb-4">
+        {STATUS_OPTIONS.map((opt) => {
+          const active = (filter ?? 'ALL') === opt.value
+          const count = opt.value === 'ALL' ? totalAll : (countMap.get(opt.value as OrderStatus) ?? 0)
+          return (
+            <Link
+              key={opt.value}
+              href={`/dashboard/orders?status=${opt.value}`}
+              className={[
+                'inline-flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0 border',
+                'text-[12.5px] font-medium transition-colors',
+                active
+                  ? 'bg-ink text-bg border-ink'
+                  : 'bg-surface text-ink-2 border-line hover:text-ink',
+              ].join(' ')}
+            >
+              {opt.label}
+              <span
+                className={[
+                  'num text-[10.5px] px-1.5 py-px rounded-full',
+                  active ? 'bg-white/15' : 'bg-surface-hi',
+                ].join(' ')}
+              >
+                {count}
+              </span>
+            </Link>
+          )
+        })}
       </div>
 
       {orders.length === 0 ? (
-        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-12 text-center">
-          <p className="text-zinc-500 text-sm">ไม่มีคำสั่งซื้อ</p>
-        </div>
+        <Card>
+          <EmptyState
+            illustration={<EmptyArt kind="check" />}
+            title="ไม่มีคำสั่งซื้อ"
+            description="ในสถานะนี้ยังไม่มีรายการ"
+          />
+        </Card>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          {/* Mobile cards */}
-          <div className="sm:hidden divide-y divide-zinc-800/60">
-            {orders.map((order) => (
-              <Link key={order.id} href={`/dashboard/orders/${order.id}`} className="flex items-start justify-between gap-3 px-4 py-4 hover:bg-zinc-800/40 transition-colors">
+        <Card padded={false}>
+          {/* Mobile */}
+          <div className="sm:hidden">
+            {orders.map((order, i) => (
+              <Link
+                key={order.id}
+                href={`/dashboard/orders/${order.id}`}
+                className={[
+                  'flex items-start justify-between gap-3 px-4 py-4 transition-colors hover:bg-surface-hi/50',
+                  i < orders.length - 1 && 'border-b border-line',
+                ].filter(Boolean).join(' ')}
+              >
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-mono text-zinc-400">#{order.id.slice(-8).toUpperCase()}</span>
-                    <OrderStatusBadge status={order.status} />
+                    <span className="mono text-xs text-ink-2">#{order.id.slice(-8).toUpperCase()}</span>
+                    <OrderStatusBadge status={order.status} size="sm" />
                   </div>
-                  <p className="text-xs text-zinc-500">{order.user.username} · {order.addressLabel}</p>
-                  <p className="text-xs text-zinc-600 truncate">
+                  <p className="text-xs text-ink-3 m-0">{order.user.username} · {order.addressLabel}</p>
+                  <p className="text-xs text-ink-4 truncate m-0">
                     {order.items.map((i) => `${i.productName} ×${i.quantity}`).join(', ')}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-zinc-100 tabular-nums">
+                  <p className="num text-sm font-semibold text-ink m-0">
                     ฿{Number(order.total).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-zinc-600 mt-0.5">
+                  <p className="text-xs text-ink-4 mt-0.5 m-0">
                     {order.createdAt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
@@ -91,33 +130,46 @@ export default async function AdminOrdersPage({
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-zinc-500 border-b border-zinc-800">
-                  <th className="text-left px-5 py-3 font-medium">คำสั่งซื้อ</th>
-                  <th className="text-left px-5 py-3 font-medium">ผู้สั่ง</th>
-                  <th className="text-left px-5 py-3 font-medium">ที่อยู่</th>
-                  <th className="text-center px-5 py-3 font-medium">สถานะ</th>
-                  <th className="text-right px-5 py-3 font-medium">ยอดรวม</th>
-                  <th className="text-right px-5 py-3 font-medium">วันที่</th>
+                <tr>
+                  {['คำสั่งซื้อ', 'ผู้สั่ง', 'ที่อยู่', 'สถานะ', 'ยอดรวม', 'วันที่'].map((h, i) => (
+                    <th
+                      key={h}
+                      className={[
+                        'kicker font-medium border-b border-line bg-surface-lo',
+                        'px-5 py-3 text-left',
+                        (i === 3) && 'text-center',
+                        (i === 4 || i === 5) && '!text-right',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-zinc-800/30 transition-colors">
+              <tbody>
+                {orders.map((order, i) => (
+                  <tr
+                    key={order.id}
+                    className={[
+                      'transition-colors hover:bg-surface-hi/50',
+                      i < orders.length - 1 && 'border-b border-line',
+                    ].filter(Boolean).join(' ')}
+                  >
                     <td className="px-5 py-4">
                       <Link href={`/dashboard/orders/${order.id}`} className="hover:underline">
-                        <p className="text-zinc-300 font-mono text-xs">#{order.id.slice(-8).toUpperCase()}</p>
-                        <p className="text-xs text-zinc-600 mt-0.5">
+                        <p className="mono text-ink-2 text-xs m-0">#{order.id.slice(-8).toUpperCase()}</p>
+                        <p className="text-xs text-ink-4 mt-0.5 m-0 max-w-[300px] truncate">
                           {order.items.map((i) => `${i.productName} ×${i.quantity}`).join(', ')}
                         </p>
                       </Link>
                     </td>
-                    <td className="px-5 py-4 text-zinc-400 text-xs">{order.user.username}</td>
-                    <td className="px-5 py-4 text-zinc-400 text-xs max-w-36 truncate">{order.addressLabel}</td>
-                    <td className="px-5 py-4 text-center"><OrderStatusBadge status={order.status} /></td>
-                    <td className="px-5 py-4 text-right text-zinc-200 font-medium tabular-nums">
+                    <td className="px-5 py-4 text-ink-2 text-xs">{order.user.username}</td>
+                    <td className="px-5 py-4 text-ink-3 text-xs max-w-36 truncate">{order.addressLabel}</td>
+                    <td className="px-5 py-4 text-center"><OrderStatusBadge status={order.status} size="sm" /></td>
+                    <td className="px-5 py-4 text-right num font-medium text-ink">
                       ฿{Number(order.total).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-5 py-4 text-right text-xs text-zinc-600 whitespace-nowrap">
+                    <td className="px-5 py-4 text-right text-xs text-ink-3 whitespace-nowrap">
                       {order.createdAt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </td>
                   </tr>
@@ -125,7 +177,7 @@ export default async function AdminOrdersPage({
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

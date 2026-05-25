@@ -1,89 +1,128 @@
 'use client'
 
-import { useRouter, usePathname } from 'next/navigation'
-import { useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useTransition, useMemo } from 'react'
+import { Input, Select } from '@/app/ui/input'
+import Segmented from '@/app/ui/segmented'
+import Badge from '@/app/ui/badge'
+import Icon from '@/app/ui/icon-svg'
 
-type Props = {
+export default function ProductSearch({
+  initialQuery,
+  initialCategory,
+  initialStatus,
+  categories,
+}: {
+  initialQuery: string
+  initialCategory: string
+  initialStatus: string
   categories: string[]
-  currentQ?: string
-  currentCategory?: string
-  currentStatus?: string
-}
-
-export default function ProductSearch({ categories, currentQ, currentCategory, currentStatus }: Props) {
+}) {
   const router = useRouter()
-  const pathname = usePathname()
-  const [, startTransition] = useTransition()
+  const sp = useSearchParams()
+  const [pending, start] = useTransition()
+  const [q, setQ] = useState(initialQuery)
 
-  function buildUrl(params: Record<string, string | undefined>) {
-    const sp = new URLSearchParams()
-    for (const [k, v] of Object.entries(params)) {
-      if (v) sp.set(k, v)
+  function update(next: Partial<{ q: string; category: string; status: string }>) {
+    const u = new URLSearchParams(sp?.toString() ?? '')
+    const apply = (k: string, v?: string) => {
+      if (v === undefined) return
+      if (v === '' || v === 'all') u.delete(k)
+      else u.set(k, v)
     }
-    const qs = sp.toString()
-    return qs ? `${pathname}?${qs}` : pathname
+    apply('q', next.q ?? q)
+    apply('category', next.category)
+    apply('status', next.status)
+    const qs = u.toString()
+    start(() => router.push(qs ? `/products?${qs}` : '/products'))
   }
 
-  function navigate(params: Record<string, string | undefined>) {
-    startTransition(() => {
-      router.push(buildUrl(params))
-    })
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    update({ q })
   }
 
-  const statusFilters = [
-    { label: 'ทั้งหมด', value: '' },
-    { label: 'ใกล้หมด', value: 'low' },
-    { label: 'หมดสต็อก', value: 'out' },
-  ]
+  const hasFilters = useMemo(
+    () => Boolean(initialQuery || initialCategory || (initialStatus && initialStatus !== 'all')),
+    [initialQuery, initialCategory, initialStatus],
+  )
 
   return (
-    <div className="flex flex-col sm:flex-row gap-2">
-      <input
-        type="search"
-        defaultValue={currentQ}
-        className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-600 min-w-48"
-        placeholder="ค้นหาชื่อสินค้า หรือ SKU..."
-        autoComplete="off"
-        onChange={(e) => {
-          navigate({ q: e.target.value || undefined, category: currentCategory, status: currentStatus })
-        }}
-      />
+    <div className="mb-4">
+      <form
+        onSubmit={onSubmit}
+        className="flex flex-wrap items-center gap-2.5 bg-surface border border-line rounded-[14px] p-3"
+      >
+        <div className="flex-1 min-w-[220px]">
+          <Input
+            icon="search"
+            placeholder="ค้นหาชื่อสินค้า หรือ SKU…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onBlur={() => update({ q })}
+          />
+        </div>
+        <Select
+          value={initialCategory}
+          onChange={(e) => update({ category: e.target.value })}
+          style={{ width: 180 }}
+        >
+          <option value="">ทุกหมวด</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
+        <Segmented
+          size="sm"
+          value={initialStatus || 'all'}
+          onChange={(v) => update({ status: v })}
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'low', label: 'ใกล้หมด' },
+            { value: 'out', label: 'หมด' },
+          ]}
+        />
+      </form>
 
-      <div className="flex items-center gap-1 flex-wrap">
-        {statusFilters.map((f) => (
+      {hasFilters && (
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-ink-3">กำลังกรอง:</span>
+          {initialQuery && (
+            <Badge tone="neutral">
+              ค้นหา: {initialQuery}
+              <button type="button" onClick={() => { setQ(''); update({ q: '' }) }} className="ml-1 text-ink-3">
+                <Icon name="close" size={11} />
+              </button>
+            </Badge>
+          )}
+          {initialCategory && (
+            <Badge tone="neutral">
+              {initialCategory}
+              <button type="button" onClick={() => update({ category: '' })} className="ml-1 text-ink-3">
+                <Icon name="close" size={11} />
+              </button>
+            </Badge>
+          )}
+          {initialStatus && initialStatus !== 'all' && (
+            <Badge tone={initialStatus === 'out' ? 'danger' : 'warn'}>
+              {initialStatus === 'out' ? 'สินค้าหมด' : 'ใกล้หมด'}
+              <button type="button" onClick={() => update({ status: 'all' })} className="ml-1">
+                <Icon name="close" size={11} />
+              </button>
+            </Badge>
+          )}
           <button
-            key={f.value}
-            onClick={() => navigate({ q: currentQ, category: currentCategory, status: f.value || undefined })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              (currentStatus ?? '') === f.value
-                ? 'bg-zinc-100 text-zinc-900'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
-            }`}
+            type="button"
+            onClick={() => { setQ(''); update({ q: '', category: '', status: 'all' }) }}
+            className="text-xs text-ink-3 underline ml-1"
           >
-            {f.label}
+            ล้างทั้งหมด
           </button>
-        ))}
-
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() =>
-              navigate({
-                q: currentQ,
-                category: currentCategory === cat ? undefined : cat,
-                status: currentStatus,
-              })
-            }
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              currentCategory === cat
-                ? 'bg-violet-600 text-white'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+          {pending && <span className="text-xs text-ink-3 anim-fade">กำลังกรอง…</span>}
+        </div>
+      )}
     </div>
   )
 }

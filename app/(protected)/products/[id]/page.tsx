@@ -29,16 +29,33 @@ export default async function ProductDetailPage({
 
   if (!product) notFound()
 
+  // Fetch siblings if this product is part of a variant group
+  const siblings = product.variantGroup
+    ? await prisma.product.findMany({
+        where: { variantGroup: product.variantGroup },
+        select: { id: true, variantLabel: true, name: true, stock: true },
+        orderBy: { name: 'asc' },
+      })
+    : []
+
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+      {/* Header — wraps gracefully on mobile */}
+      <div className="mb-6">
         <Link href="/products" className="text-zinc-600 hover:text-zinc-300 transition-colors text-sm">
           ← กลับ
         </Link>
-        <div className="flex-1 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-zinc-100">{product.name}</h1>
+        <div className="flex items-start justify-between gap-3 mt-2">
+          <div className="min-w-0">
+            {product.variantGroup && (
+              <p className="text-xs text-zinc-500 mb-0.5">{product.variantGroup}</p>
+            )}
+            <h1 className="text-xl font-semibold text-zinc-100 leading-snug">
+              {product.variantLabel ?? product.name}
+            </h1>
+          </div>
           {isAdmin && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Link
                 href={`/products/${id}/edit`}
                 className="text-sm px-3 py-1.5 border border-zinc-700 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
@@ -49,15 +66,56 @@ export default async function ProductDetailPage({
             </div>
           )}
         </div>
+
+        {/* Variant siblings selector */}
+        {siblings.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <span className="text-xs text-zinc-500">รส / ขนาด:</span>
+            {siblings.map((s) => (
+              <Link
+                key={s.id}
+                href={`/products/${s.id}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  s.id === product.id
+                    ? 'bg-zinc-100 text-zinc-900'
+                    : s.stock === 0
+                    ? 'bg-zinc-800 text-zinc-600 border border-zinc-800 line-through'
+                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                {s.variantLabel ?? s.name}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Layout:
+          Mobile (1 col): stock form first (first in DOM), then product info + history
+          Desktop (3 cols): explicit placement — content cols 1-2, form col 3 */}
       <div className={`grid grid-cols-1 gap-5 ${canAdjustStock ? 'lg:grid-cols-3' : ''}`}>
-        <div className={`space-y-5 ${canAdjustStock ? 'lg:col-span-2' : ''}`}>
-          <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-5">
-            <div className="flex gap-5">
-              <div className="relative w-28 h-28 flex-shrink-0 bg-zinc-800 rounded-xl overflow-hidden border border-zinc-700">
+
+        {/* Stock adjust form — first in DOM = first on mobile; col 3 on desktop */}
+        {canAdjustStock && (
+          <div className="lg:col-start-3 lg:row-start-1">
+            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-5">
+              <h3 className="font-medium text-zinc-200 mb-4">ปรับ Stock</h3>
+              <StockAdjustForm
+                productId={product.id}
+                currentStock={product.stock}
+                productName={product.variantLabel ?? product.name}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Product info + history — second in DOM = below form on mobile; cols 1-2 on desktop */}
+        <div className={`space-y-5 ${canAdjustStock ? 'lg:col-span-2 lg:col-start-1 lg:row-start-1' : ''}`}>
+          <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 sm:p-5">
+            <div className="flex gap-4">
+              <div className="relative w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 bg-zinc-800 rounded-xl overflow-hidden border border-zinc-700">
                 {product.imageUrl ? (
-                  <Image src={product.imageUrl} alt={product.name} fill className="object-contain p-2" unoptimized />
+                  <Image src={product.imageUrl} alt={product.name} fill className="object-cover" unoptimized />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +129,7 @@ export default async function ProductDetailPage({
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="font-semibold text-zinc-100 text-lg">{product.name}</h2>
+                    <h2 className="font-semibold text-zinc-100 text-base sm:text-lg">{product.name}</h2>
                     <p className="text-sm text-zinc-600 mt-0.5">SKU: {product.sku}</p>
                   </div>
                   <StockBadge stock={product.stock} minStock={product.minStock} />
@@ -81,7 +139,7 @@ export default async function ProductDetailPage({
                   <p className="text-sm text-zinc-500 mt-2">{product.description}</p>
                 )}
 
-                <div className="flex flex-wrap gap-5 mt-4">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-5 mt-4">
                   <div>
                     <p className="text-xs text-zinc-600 uppercase tracking-wider">ราคา</p>
                     <p className="font-semibold text-zinc-100 mt-0.5">
@@ -106,7 +164,7 @@ export default async function ProductDetailPage({
           </div>
 
           {canAdjustStock && (
-            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-5">
+            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 sm:p-5">
               <h3 className="font-medium text-zinc-200 mb-4">ประวัติการเปลี่ยนแปลง Stock</h3>
 
               {product.stockLogs.length === 0 ? (
@@ -114,8 +172,8 @@ export default async function ProductDetailPage({
               ) : (
                 <div className="divide-y divide-zinc-800">
                   {product.stockLogs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between py-3">
-                      <div className="flex items-center gap-3">
+                    <div key={log.id} className="flex items-center justify-between py-3 gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
                         <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                           log.type === 'ADD'
                             ? 'bg-emerald-950 text-emerald-400'
@@ -125,19 +183,19 @@ export default async function ProductDetailPage({
                         }`}>
                           {log.type === 'ADD' ? '+' : log.type === 'SUBTRACT' ? '−' : '='}
                         </span>
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm text-zinc-300">
                             {log.type === 'ADD'
                               ? `+${log.quantity}`
                               : log.type === 'SUBTRACT'
                               ? `-${log.quantity}`
                               : `ตั้งเป็น ${log.quantity}`}
-                            <span className="text-zinc-600 ml-2 text-xs">{log.before} → {log.after}</span>
+                            <span className="text-zinc-600 ml-2 text-xs tabular-nums">{log.before} → {log.after}</span>
                           </p>
-                          {log.note && <p className="text-xs text-zinc-600 mt-0.5">{log.note}</p>}
+                          {log.note && <p className="text-xs text-zinc-600 mt-0.5 truncate">{log.note}</p>}
                         </div>
                       </div>
-                      <p className="text-xs text-zinc-600 flex-shrink-0 ml-3">
+                      <p className="text-xs text-zinc-600 flex-shrink-0">
                         {log.createdAt.toLocaleDateString('th-TH', {
                           day: 'numeric',
                           month: 'short',
@@ -152,19 +210,6 @@ export default async function ProductDetailPage({
             </div>
           )}
         </div>
-
-        {canAdjustStock && (
-          <div>
-            <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-5">
-              <h3 className="font-medium text-zinc-200 mb-4">ปรับ Stock</h3>
-              <StockAdjustForm
-                productId={product.id}
-                currentStock={product.stock}
-                productName={product.name}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

@@ -88,6 +88,7 @@ export default function NavMobileMenu({ isAdmin, isStaff, isStaffOrAdmin }: Prop
                 <div className="h-px bg-zinc-800/60 mx-1 my-2" />
                 <p className="px-4 pb-1 text-xs font-semibold text-zinc-600 uppercase tracking-wider">Management</p>
                 <NavItem href="/dashboard" onClick={close}>Dashboard</NavItem>
+                <NavItem href="/dashboard/stock" onClick={close}>ภาพรวม Stock</NavItem>
                 <NavItem href="/dashboard/orders" onClick={close}>จัดการออเดอร์</NavItem>
                 <NavItem href="/dashboard/users" onClick={close}>จัดการผู้ใช้</NavItem>
                 <NavItem href="/dashboard/addresses" onClick={close}>ที่อยู่จัดส่ง</NavItem>

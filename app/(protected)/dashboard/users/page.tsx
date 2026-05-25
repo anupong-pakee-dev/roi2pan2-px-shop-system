@@ -6,20 +6,30 @@ import UsersRefresh from './users-refresh'
 export default async function UsersPage() {
   await verifyStaff()
 
-  const users = await prisma.user.findMany({
-    where: { role: 'USER' },
-    orderBy: [{ approved: 'asc' }, { createdAt: 'desc' }],
-    select: {
-      id: true,
-      username: true,
-      approved: true,
-      createdAt: true,
-      _count: { select: { orders: true } },
-    },
-  })
-
-  const pending = users.filter((u) => !u.approved)
-  const approved = users.filter((u) => u.approved)
+  const [pending, approved] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: 'USER', approved: false, loginRequested: true },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        approved: true,
+        createdAt: true,
+        _count: { select: { orders: true } },
+      },
+    }),
+    prisma.user.findMany({
+      where: { role: 'USER', approved: true },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        approved: true,
+        createdAt: true,
+        _count: { select: { orders: true } },
+      },
+    }),
+  ])
 
   return (
     <div className="space-y-6">

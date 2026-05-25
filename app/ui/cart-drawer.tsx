@@ -4,144 +4,115 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/lib/cart-context'
+import Button from '@/app/ui/button'
+import Icon from '@/app/ui/icon-svg'
+import { EmptyArt } from '@/app/ui/empty-state'
+import ImagePlaceholder, { hueFor } from '@/app/ui/image-placeholder'
 
 export default function CartDrawer() {
   const { items, totalItems, totalPrice, isOpen, closeCart, removeFromCart, updateQuantity, clearCart } =
     useCart()
 
-  // Lock body scroll when open
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
+  if (!isOpen) return null
+
   return (
     <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-30 backdrop-blur-sm"
-          onClick={closeCart}
-        />
-      )}
-
-      {/* Drawer */}
+      <div onClick={closeCart} className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[4px] anim-fade" />
       <aside
-        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-zinc-950 border-l border-zinc-800 z-40 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className="anim-drawer fixed top-0 right-0 bottom-0 z-50 w-[460px] max-w-full bg-bg border-l border-line flex flex-col shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            <h2 className="font-semibold text-zinc-100">ตะกร้าสินค้า</h2>
-            {totalItems > 0 && (
-              <span className="bg-zinc-700 text-zinc-200 text-xs font-bold px-2 py-0.5 rounded-full">
-                {totalItems}
-              </span>
-            )}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <div>
+            <div className="kicker">ตะกร้า</div>
+            <div className="text-[17px] font-semibold text-ink mt-0.5">
+              {items.length === 0 ? 'ว่างเปล่า' : `${totalItems} ชิ้น · ${items.length} รายการ`}
+            </div>
           </div>
           <button
             onClick={closeCart}
-            className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+            title="ปิด"
+            className="w-9 h-9 rounded-md inline-flex items-center justify-center text-ink-2 hover:bg-surface-hi hover:text-ink"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Icon name="close" size={18} />
           </button>
         </div>
 
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto scroll-thin">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-600 px-5">
-              <svg className="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              <p className="text-sm">ตะกร้าว่างเปล่า</p>
-              <button
-                onClick={closeCart}
-                className="text-xs text-zinc-400 hover:text-zinc-200 underline transition-colors"
-              >
-                เลือกสินค้า
-              </button>
+            <div className="text-center px-6 py-14">
+              <EmptyArt kind="cart" size={104} />
+              <div className="mt-4 text-ink font-medium text-[15px]">ตะกร้าว่างเปล่า</div>
+              <div className="mt-1 text-ink-3 text-[12.5px] max-w-[240px] mx-auto">
+                กดเพิ่มสินค้าจากแคตตาล็อกเพื่อเริ่มสั่งซื้อ
+              </div>
+              <div className="mt-5">
+                <Button variant="primary" icon="store" onClick={closeCart}>เลือกสินค้า</Button>
+              </div>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="px-4">
               {items.map((item) => (
-                <div key={item.productId} className="flex gap-3 px-5 py-4">
-                  {/* Image */}
-                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0 border border-zinc-700">
-                    {item.imageUrl ? (
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        width={56}
-                        height={56}
-                        className="object-cover w-full h-full"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-700">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info */}
+                <div key={item.productId} className="flex gap-3 py-3.5 border-b border-line">
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.productName}
+                      width={64}
+                      height={64}
+                      unoptimized
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <ImagePlaceholder hue={hueFor(item.productId)} className="w-16 h-16 rounded-lg flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">{item.productName}</p>
-                    <p className="text-xs text-zinc-500">{item.sku}</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      ฿{item.price.toLocaleString('th-TH', { minimumFractionDigits: 2 })} / ชิ้น
-                    </p>
-
-                    {/* Qty controls */}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-medium text-ink truncate">{item.productName}</div>
+                        <div className="mono text-[10.5px] text-ink-3 mt-0.5">{item.sku}</div>
+                      </div>
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="w-7 h-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-sm font-bold transition-colors flex items-center justify-center"
+                        onClick={() => removeFromCart(item.productId)}
+                        className="text-ink-3 hover:text-danger h-5"
+                        title="ลบ"
                       >
-                        −
+                        <Icon name="trash" size={14} />
                       </button>
-                      <span className="w-8 text-center text-sm font-semibold text-zinc-100 tabular-nums">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        disabled={item.quantity >= item.maxStock}
-                        className="w-7 h-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                      >
-                        +
-                      </button>
-                      <span className="text-xs text-zinc-600 ml-1">
-                        เหลือ {item.maxStock}
-                      </span>
                     </div>
-                  </div>
 
-                  {/* Subtotal + remove */}
-                  <div className="flex flex-col items-end justify-between flex-shrink-0">
-                    <button
-                      onClick={() => removeFromCart(item.productId)}
-                      className="text-zinc-700 hover:text-red-400 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                    <p className="text-sm font-semibold text-zinc-200 tabular-nums">
-                      ฿{(item.price * item.quantity).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </p>
+                    <div className="flex items-center justify-between mt-2.5">
+                      <div className="inline-flex items-center bg-surface-lo border border-line rounded-md overflow-hidden h-8">
+                        <button
+                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          className="w-8 h-8 inline-flex items-center justify-center text-ink-2 border-r border-line hover:bg-surface-hi"
+                        >
+                          <Icon name="minus" size={14} />
+                        </button>
+                        <span className="num w-10 text-center font-semibold text-ink text-sm">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                          disabled={item.quantity >= item.maxStock}
+                          className="w-8 h-8 inline-flex items-center justify-center text-ink-2 border-l border-line hover:bg-surface-hi disabled:opacity-30"
+                        >
+                          <Icon name="plus" size={14} />
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <div className="num text-[14.5px] font-semibold text-ink">
+                          ฿{(item.price * item.quantity).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div className="num text-[11px] text-ink-3">
+                          ฿{item.price.toLocaleString('th-TH', { minimumFractionDigits: 2 })} × {item.quantity}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -151,32 +122,20 @@ export default function CartDrawer() {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-400">ยอดรวมสินค้า</span>
-              <span className="text-lg font-bold text-zinc-100">
+          <div className="p-4 border-t border-line bg-surface-lo">
+            <div className="flex justify-between items-baseline mb-3">
+              <span className="text-ink-3 text-[13px]">ยอดรวม</span>
+              <span className="num text-[22px] font-semibold text-ink">
                 ฿{totalPrice.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <p className="text-xs text-zinc-600">* ยังไม่รวมค่าจัดส่ง</p>
-
-            <Link
-              href="/orders/new"
-              onClick={closeCart}
-              className="flex items-center justify-center gap-2 w-full bg-zinc-100 text-zinc-900 rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-              ดำเนินการสั่งซื้อ
-            </Link>
-
-            <button
-              onClick={clearCart}
-              className="w-full text-xs text-zinc-600 hover:text-zinc-400 transition-colors py-1"
-            >
-              ล้างตะกร้า
-            </button>
+            <p className="text-[11px] text-ink-4 mb-3">* ยังไม่รวมค่าจัดส่ง</p>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={clearCart}>ล้าง</Button>
+              <Link href="/orders/new" onClick={closeCart} className="flex-1">
+                <Button variant="primary" full iconRight="arrowR">ดำเนินการสั่งซื้อ</Button>
+              </Link>
+            </div>
           </div>
         )}
       </aside>

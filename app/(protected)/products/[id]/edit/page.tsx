@@ -36,6 +36,8 @@ export default async function EditProductPage({
             minStock: product.minStock,
             category: product.category ?? undefined,
             imageUrl: product.imageUrl ?? undefined,
+            variantGroup: product.variantGroup,
+            variantLabel: product.variantLabel,
           }}
         />
       </div>

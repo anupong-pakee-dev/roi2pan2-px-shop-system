@@ -21,6 +21,8 @@ export async function createProduct(
     minStock: formData.get('minStock'),
     category: formData.get('category') || undefined,
     imageUrl: formData.get('imageUrl') || undefined,
+    variantGroup: formData.get('variantGroup') || undefined,
+    variantLabel: formData.get('variantLabel') || undefined,
   })
 
   if (!validated.success) {
@@ -45,6 +47,8 @@ export async function createProduct(
         minStock: data.minStock,
         category: data.category,
         imageUrl: data.imageUrl,
+        variantGroup: data.variantGroup ?? null,
+        variantLabel: data.variantLabel ?? null,
       },
     })
 
@@ -85,6 +89,8 @@ export async function updateProduct(
     minStock: formData.get('minStock'),
     category: formData.get('category') || undefined,
     imageUrl: formData.get('imageUrl') || undefined,
+    variantGroup: formData.get('variantGroup') || undefined,
+    variantLabel: formData.get('variantLabel') || undefined,
   })
 
   if (!validated.success) {
@@ -109,6 +115,8 @@ export async function updateProduct(
         minStock: data.minStock,
         category: data.category,
         imageUrl: data.imageUrl,
+        variantGroup: data.variantGroup ?? null,
+        variantLabel: data.variantLabel ?? null,
       },
     })
   } catch {

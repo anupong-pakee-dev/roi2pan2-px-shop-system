@@ -26,10 +26,10 @@ export default function StockAdjustForm({ productId, currentStock, productName }
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="text-center py-5 bg-zinc-800/60 rounded-xl border border-zinc-700/50">
+      <div className="text-center py-5 bg-zinc-800/60 rounded-xl border border-zinc-700/50 overflow-hidden">
         <p className="text-xs text-zinc-500 mb-1 uppercase tracking-wider">Stock ปัจจุบัน</p>
         <p className="text-5xl font-bold text-zinc-100 tabular-nums">{currentStock}</p>
-        <p className="text-xs text-zinc-600 mt-1">{productName}</p>
+        <p className="text-xs text-zinc-600 mt-1 px-3 truncate">{productName}</p>
       </div>
 
       <div>
@@ -73,7 +73,7 @@ export default function StockAdjustForm({ productId, currentStock, productName }
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(0, q - 1))}
-            className="w-11 h-11 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xl font-bold transition-colors"
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xl font-bold transition-colors"
           >
             −
           </button>
@@ -83,12 +83,12 @@ export default function StockAdjustForm({ productId, currentStock, productName }
             min="0"
             value={quantity}
             onChange={(e) => setQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-center text-2xl font-bold text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 tabular-nums"
+            className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2.5 text-center text-xl font-bold text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="w-11 h-11 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xl font-bold transition-colors"
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 text-xl font-bold transition-colors"
           >
             +
           </button>

@@ -6,12 +6,12 @@ import { verifyStaff } from '@/app/lib/dal'
 
 export async function approveUser(userId: string) {
   await verifyStaff()
-  await prisma.user.update({ where: { id: userId }, data: { approved: true } })
+  await prisma.user.update({ where: { id: userId }, data: { approved: true, loginRequested: false } })
   revalidatePath('/dashboard/users')
 }
 
 export async function revokeUser(userId: string) {
   await verifyStaff()
-  await prisma.user.update({ where: { id: userId }, data: { approved: false } })
+  await prisma.user.update({ where: { id: userId }, data: { approved: false, loginRequested: false } })
   revalidatePath('/dashboard/users')
 }
