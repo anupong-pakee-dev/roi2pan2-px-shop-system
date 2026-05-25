@@ -22,6 +22,10 @@ const STAFF_TABS: Tab[] = [
   { href: '/dashboard/users',   label: 'ผู้ใช้',     icon: 'users', match: (p) => p.startsWith('/dashboard/users') },
 ]
 
+const ADMIN_TABS: Tab[] = [
+  { href: '/dashboard/data', label: 'ข้อมูล', icon: 'layers', match: (p) => p.startsWith('/dashboard/data') },
+]
+
 const ROLE_LABEL: Record<string, { label: string; tone: string }> = {
   ADMIN: { label: 'Admin', tone: 'text-violet-soft-fg' },
   STAFF: { label: 'Staff', tone: 'text-info-soft-fg' },
@@ -69,6 +73,15 @@ export default function Navbar({ session }: { session: SessionPayload }) {
             <span className="w-px h-5 bg-line flex-shrink-0" />
             <nav className="flex gap-0.5 flex-shrink-0">
               {STAFF_TABS.map((t) => <TabLink key={t.href} tab={t} pathname={pathname} />)}
+            </nav>
+          </>
+        )}
+
+        {session.role === 'ADMIN' && (
+          <>
+            <span className="w-px h-5 bg-line flex-shrink-0" />
+            <nav className="flex gap-0.5 flex-shrink-0">
+              {ADMIN_TABS.map((t) => <TabLink key={t.href} tab={t} pathname={pathname} />)}
             </nav>
           </>
         )}
