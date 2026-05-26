@@ -1,23 +1,32 @@
-'use client'
-
-import { useActionState, useState } from 'react'
-import { login } from '@/app/actions/auth'
-import Button from '@/app/ui/button'
-import { Input, Field } from '@/app/ui/input'
-import Icon from '@/app/ui/icon-svg'
 import PXMark from '@/app/ui/px-mark'
 import { SparkBar } from '@/app/ui/charts'
 import LiveTicker from '@/app/ui/live-ticker'
+import LoginForm from './login-form'
+import { getLoginStats } from '@/app/lib/login-stats'
 
-const HERO_STATS = [
-  { kicker: 'สินค้า',   value: '20',  unit: 'ชนิด',  spark: [12, 14, 13, 16, 18, 17, 20] },
-  { kicker: 'สต็อก',    value: '852', unit: 'ชิ้น',  spark: [620, 680, 700, 720, 780, 820, 852] },
-  { kicker: 'ออเดอร์',   value: '6',   unit: 'รายการ', spark: [2, 3, 1, 4, 3, 5, 6] },
-]
+export default async function LoginPage() {
+  const stats = await getLoginStats().catch(() => null)
 
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(login, undefined)
-  const [showPw, setShowPw] = useState(false)
+  const heroStats = [
+    {
+      kicker: 'สินค้า',
+      value: stats ? stats.productCount.toLocaleString() : '—',
+      unit: 'ชนิด',
+      spark: stats ? Array(7).fill(stats.productCount) : [0, 0, 0, 0, 0, 0, 0],
+    },
+    {
+      kicker: 'สต็อก',
+      value: stats ? stats.totalStock.toLocaleString() : '—',
+      unit: 'ชิ้น',
+      spark: stats ? stats.stockSpark : [0, 0, 0, 0, 0, 0, 0],
+    },
+    {
+      kicker: 'ออเดอร์',
+      value: stats ? stats.activeOrderCount.toLocaleString() : '—',
+      unit: 'รายการ',
+      spark: stats ? stats.orderSpark : [0, 0, 0, 0, 0, 0, 0],
+    },
+  ]
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1fr_480px] bg-bg">
@@ -50,14 +59,14 @@ export default function LoginPage() {
         <div className="relative">
           <div className="kicker text-brand-soft-fg mb-3.5">Internal · Inventory & Orders</div>
           <h1 className="m-0 text-[44px] font-semibold tracking-tight text-ink leading-[1.05] max-w-xl">
-            ระบบสต็อกและสั่งซื้อ<br />ภายในองค์กร
+            ระบบสต็อกและสั่งซื้อ<br />ภายในองค์กร ร้านครูเก็ท
           </h1>
           <p className="mt-4 text-ink-3 text-base max-w-md leading-relaxed">
             จัดการสินค้า สั่งซื้อ และดูแลคลังจากที่เดียว ทุกการเปลี่ยนแปลงถูกบันทึกอัตโนมัติ
           </p>
 
           <div className="mt-8 grid grid-cols-3 gap-3 max-w-lg">
-            {HERO_STATS.map((s) => (
+            {heroStats.map((s) => (
               <div
                 key={s.kicker}
                 className="p-3.5 rounded-[14px] border border-line backdrop-blur-md"
@@ -95,50 +104,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right — form */}
-      <div className="p-8 sm:p-12 flex flex-col justify-center">
-        <div className="max-w-sm w-full mx-auto">
-          <div className="lg:hidden mb-8"><PXMark size={24} /></div>
-          <div className="kicker">เข้าสู่ระบบ</div>
-          <h2 className="mt-1.5 mb-1 text-2xl font-semibold tracking-tight text-ink">ยินดีต้อนรับกลับ</h2>
-          <p className="m-0 text-ink-3 text-[13.5px]">ใช้บัญชีพนักงานสำหรับเข้าระบบ</p>
-
-          <form action={formAction} className="mt-7 flex flex-col gap-3.5">
-            <Field label="ชื่อผู้ใช้">
-              <Input name="username" placeholder="กรอกชื่อผู้ใช้" autoFocus icon="user" />
-            </Field>
-            <Field label="รหัสผ่าน">
-              <Input
-                name="password"
-                placeholder="กรอกรหัสผ่าน"
-                type={showPw ? 'text' : 'password'}
-                addonRight={
-                  <button
-                    type="button"
-                    onClick={() => setShowPw((v) => !v)}
-                    className="p-1.5 text-ink-3 hover:text-ink-2"
-                  >
-                    <Icon name={showPw ? 'eyeOff' : 'eye'} size={15} />
-                  </button>
-                }
-              />
-            </Field>
-
-            {state?.message && (
-              <div className="flex items-center gap-2 p-2.5 text-[12.5px] bg-danger-soft text-danger-soft-fg rounded-md">
-                <Icon name="warn" size={15} /> {state.message}
-              </div>
-            )}
-
-            <Button type="submit" variant="primary" size="lg" full disabled={pending} iconRight={pending ? undefined : 'arrowR'}>
-              {pending ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
-            </Button>
-          </form>
-
-          <p className="mt-6 text-[11.5px] text-ink-3 text-center mono">
-            หากยังไม่มีบัญชี ติดต่อ admin
-          </p>
-        </div>
-      </div>
+      <LoginForm />
     </div>
   )
 }
