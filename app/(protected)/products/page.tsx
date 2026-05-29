@@ -141,12 +141,12 @@ export default async function ProductsPage({
           }
         />
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] auto-rows-fr gap-4 items-stretch">
           {cards.map((card, i) =>
             card.type === 'group' ? (
               <div
                 key={card.key}
-                className="anim-stagger"
+                className="anim-stagger h-full"
                 style={{ animationDelay: `${Math.min(i * 25, 400)}ms` }}
               >
                 <ProductVariantCard
@@ -210,7 +210,7 @@ function ProductCard({ p, delay = 0 }: { p: any; delay?: number }) {
           </div>
         </div>
       </Link>
-      <div className="p-3 mt-2.5 mt-auto">
+      <div className="p-3 mt-auto">
         <AddToCartButton
           product={{
             productId: p.id,

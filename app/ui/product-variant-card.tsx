@@ -31,7 +31,7 @@ export default function ProductVariantCard({
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0]
 
   return (
-    <div className="group bg-surface rounded-[14px] border border-line overflow-hidden flex flex-col hover:border-line-hi hover:-translate-y-px transition-[border-color,transform]">
+    <div className="group h-full bg-surface rounded-[14px] border border-line overflow-hidden flex flex-col hover:border-line-hi hover:-translate-y-px transition-[border-color,transform]">
       <Link href={`/products/${selected.id}`} className="block">
         <div className="relative p-3 pb-0">
           {selected.imageUrl ? (
@@ -100,7 +100,7 @@ export default function ProductVariantCard({
         })}
       </div>
 
-      <div className="p-3 mt-2.5 mt-auto">
+      <div className="p-3 mt-auto">
         <AddToCartButton
           product={{
             productId: selected.id,

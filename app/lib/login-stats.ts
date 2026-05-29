@@ -13,33 +13,22 @@ export async function getLoginStats(): Promise<LoginStats> {
   sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6)
   sixDaysAgo.setUTCHours(0, 0, 0, 0)
 
-  const [productCount, stockAgg, activeOrderCount, rawStockDays, rawOrderDays] = await Promise.all([
-    prisma.product.count(),
-    prisma.product.aggregate({ _sum: { stock: true } }),
-    prisma.order.count({
-      where: { status: { in: ['PENDING', 'CONFIRMED', 'PREPARING'] } },
-    }),
-    // Net stock change per day (SUM of after-before per log entry)
-    prisma.$queryRaw<{ day: string; net: number }[]>`
-      SELECT
-        TO_CHAR(DATE_TRUNC('day', "createdAt"), 'YYYY-MM-DD') AS day,
-        SUM("after" - "before")::int AS net
-      FROM "StockLog"
-      WHERE "createdAt" >= ${sixDaysAgo}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY day ASC
-    `,
-    // Orders created per day
-    prisma.$queryRaw<{ day: string; count: number }[]>`
-      SELECT
-        TO_CHAR(DATE_TRUNC('day', "createdAt"), 'YYYY-MM-DD') AS day,
-        COUNT(*)::int AS count
-      FROM "Order"
-      WHERE "createdAt" >= ${sixDaysAgo}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY day ASC
-    `,
-  ])
+  const [productCount, stockAgg, activeOrderCount, stockLogs, recentOrders] =
+    await Promise.all([
+      prisma.product.count(),
+      prisma.product.aggregate({ _sum: { stock: true } }),
+      prisma.order.count({
+        where: { status: { in: ['PENDING', 'CONFIRMED', 'PREPARING'] } },
+      }),
+      prisma.stockLog.findMany({
+        where: { createdAt: { gte: sixDaysAgo } },
+        select: { createdAt: true, before: true, after: true },
+      }),
+      prisma.order.findMany({
+        where: { createdAt: { gte: sixDaysAgo } },
+        select: { createdAt: true },
+      }),
+    ])
 
   const totalStock = stockAgg._sum.stock ?? 0
 
@@ -50,8 +39,14 @@ export async function getLoginStats(): Promise<LoginStats> {
     return d.toISOString().slice(0, 10)
   })
 
+  // Net stock change per day
+  const netByDay = new Map<string, number>()
+  for (const log of stockLogs) {
+    const day = log.createdAt.toISOString().slice(0, 10)
+    netByDay.set(day, (netByDay.get(day) ?? 0) + (Number(log.after) - Number(log.before)))
+  }
+
   // Stock spark: reconstruct running total walking backwards from current total
-  const netByDay = new Map(rawStockDays.map((r) => [r.day, r.net]))
   const stockSpark: number[] = Array(7).fill(0)
   stockSpark[6] = totalStock
   for (let i = 5; i >= 0; i--) {
@@ -60,7 +55,11 @@ export async function getLoginStats(): Promise<LoginStats> {
   }
 
   // Order spark: daily new order count
-  const orderByDay = new Map(rawOrderDays.map((r) => [r.day, r.count]))
+  const orderByDay = new Map<string, number>()
+  for (const o of recentOrders) {
+    const day = o.createdAt.toISOString().slice(0, 10)
+    orderByDay.set(day, (orderByDay.get(day) ?? 0) + 1)
+  }
   const orderSpark = dayKeys.map((d) => orderByDay.get(d) ?? 0)
 
   return { productCount, totalStock, activeOrderCount, stockSpark, orderSpark }
